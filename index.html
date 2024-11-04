@@ -15,11 +15,9 @@
     <h1>Fooocus Image Editor</h1>
     <p>Upload an image and edit it using Fooocus presets.</p>
 
-    <!-- Upload Image Section -->
     <input type="file" id="roomImage" accept="image/*"><br>
-    <input type="text" id="prompt" placeholder="Enter prompt for style (e.g., 'modern interior')"><br>
+    <input type="text" id="prompt" placeholder="Enter prompt for style"><br>
     
-    <!-- Preset Selection Dropdown -->
     <select id="preset">
         <option value="cog-realistic">Realistic</option>
         <option value="cog-digital">Digital</option>
@@ -28,24 +26,40 @@
     </select><br>
 
     <button onclick="processImage()">Upload and Edit Image</button>
-
-    <!-- Output Section for Messages and Processed Image -->
     <div id="output" class="output"></div>
     <div id="imageResult"></div>
 
     <script>
-        // Set the API URL to the Fooocus server
-        const FOOOCUS_API_URL = "https://your-generated-fooocus-url-or-ip"; // Replace with actual Fooocus URL/IP
+        let fooocusApiUrl = null;
+
+        // Fetch Fooocus IP from Flask backend
+        async function getFooocusIp() {
+            const response = await fetch('/get_fooocus_ip');
+            const result = await response.json();
+            if (result.success) {
+                fooocusApiUrl = result.fooocus_ip;
+                document.getElementById('output').innerText = 'Connected to Fooocus!';
+            } else {
+                document.getElementById('output').innerText = 'Error connecting to Fooocus.';
+            }
+        }
+
+        // Call to fetch Fooocus IP on page load
+        getFooocusIp();
 
         async function processImage() {
+            if (!fooocusApiUrl) {
+                document.getElementById('output').innerText = 'Fooocus is not connected. Try again later.';
+                return;
+            }
+
             const fileInput = document.getElementById('roomImage');
             const prompt = document.getElementById('prompt').value;
             const preset = document.getElementById('preset').value;
             const outputDiv = document.getElementById('output');
             const imageResultDiv = document.getElementById('imageResult');
 
-            // Clear previous output
-            outputDiv.innerText = '';
+            outputDiv.innerText = 'Uploading and processing image...';
             imageResultDiv.innerHTML = '';
 
             if (!fileInput.files[0]) {
@@ -57,14 +71,9 @@
             formData.append('image', fileInput.files[0]);
             formData.append('prompt', prompt);
             formData.append('preset', preset);
-            formData.append('steps', '50'); // Set a default number of steps
-            formData.append('width', '512'); // Default width
-            formData.append('height', '512'); // Default height
-
-            outputDiv.innerText = 'Uploading and processing image...';
 
             try {
-                const response = await fetch(`${FOOOCUS_API_URL}/generate`, {
+                const response = await fetch(`${fooocusApiUrl}/generate`, {
                     method: 'POST',
                     body: formData
                 });
