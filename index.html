@@ -3,20 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Interior Design App</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Fooocus Image Editor</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        button, input[type="file"], select, input[type="text"] { padding: 10px; font-size: 16px; cursor: pointer; margin: 5px; }
+        .output { margin-top: 20px; font-family: monospace; white-space: pre; text-align: left; }
+        img { max-width: 100%; border-radius: 8px; margin-top: 20px; }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>AI Interior Design App</h1>
-        <form id="uploadForm">
-            <label for="roomImage">Upload an Image of the Room:</label>
-            <input type="file" id="roomImage" accept="image/*" required>
-            <br><br>
-            <button type="button" onclick="submitForm()">Generate Design</button>
-        </form>
-        <div id="result"></div>
-    </div>
-    <script src="script.js"></script>
+    <h1>Fooocus Image Editor</h1>
+    <p>Upload an image and edit it using Fooocus presets.</p>
+
+    <!-- Upload Image Section -->
+    <input type="file" id="roomImage" accept="image/*"><br>
+    <input type="text" id="prompt" placeholder="Enter prompt for style (e.g., 'modern interior')"><br>
+    
+    <!-- Preset Selection Dropdown -->
+    <select id="preset">
+        <option value="cog-realistic">Realistic</option>
+        <option value="cog-digital">Digital</option>
+        <option value="cog-illustration">Illustration</option>
+        <option value="cog-painting">Painting</option>
+    </select><br>
+
+    <button onclick="processImage()">Upload and Edit Image</button>
+
+    <!-- Output Section for Messages and Processed Image -->
+    <div id="output" class="output"></div>
+    <div id="imageResult"></div>
+
+    <script>
+        // Set the API URL to the Fooocus server
+        const FOOOCUS_API_URL = "https://your-generated-fooocus-url-or-ip"; // Replace with actual Fooocus URL/IP
+
+        async function processImage() {
+            const fileInput = document.getElementById('roomImage');
+            const prompt = document.getElementById('prompt').value;
+            const preset = document.getElementById('preset').value;
+            const outputDiv = document.getElementById('output');
+            const imageResultDiv = document.getElementById('imageResult');
+
+            // Clear previous output
+            outputDiv.innerText = '';
+            imageResultDiv.innerHTML = '';
+
+            if (!fileInput.files[0]) {
+                outputDiv.innerText = 'Please select an image to upload.';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            formData.append('prompt', prompt);
+            formData.append('preset', preset);
+            formData.append('steps', '50'); // Set a default number of steps
+            formData.append('width', '512'); // Default width
+            formData.append('height', '512'); // Default height
+
+            outputDiv.innerText = 'Uploading and processing image...';
+
+            try {
+                const response = await fetch(`${FOOOCUS_API_URL}/generate`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    outputDiv.innerText = 'Image processed successfully!';
+                    imageResultDiv.innerHTML = `<img src="${result.image_url}" alt="Processed Image">`;
+                } else {
+                    outputDiv.innerText = `Processing failed: ${result.message}`;
+                }
+            } catch (error) {
+                outputDiv.innerText = `An error occurred: ${error.message}`;
+            }
+        }
+    </script>
 </body>
 </html>
