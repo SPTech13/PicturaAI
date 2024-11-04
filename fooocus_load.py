@@ -1,46 +1,81 @@
-import subprocess
 import os
-import sys
+import re
+import subprocess
+import time
+from flask import Flask, jsonify
 
-def run_command(command, cwd=None):
-    """Helper function to run a shell command and print the output in real time."""
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, cwd=cwd)
-    
-    # Stream output to the console
+app = Flask(__name__)
+
+# Define constants
+FOOOCUS_REPO_URL = "https://github.com/lllyasviel/Fooocus.git"
+FOOOCUS_DIR = "/tmp/Fooocus"
+FOOOCUS_IP = None  # Will be set dynamically after Fooocus starts
+
+def install_pygit2():
+    """Install pygit2 if not already installed."""
+    print("Installing pygit2...")
+    result = subprocess.run(["pip", "install", "pygit2==1.15.1"], capture_output=True, text=True)
+    if result.returncode != 0:
+        print("Error installing pygit2:", result.stderr)
+        raise RuntimeError("Failed to install pygit2")
+
+def clone_fooocus():
+    """Clone the Fooocus repository if not already present."""
+    if not os.path.exists(FOOOCUS_DIR):
+        print("Cloning Fooocus repository...")
+        result = subprocess.run(["git", "clone", FOOOCUS_REPO_URL, FOOOCUS_DIR], capture_output=True, text=True)
+        if result.returncode != 0:
+            print("Error cloning Fooocus repository:", result.stderr)
+            raise RuntimeError("Failed to clone Fooocus repository")
+
+def start_fooocus():
+    """Start Fooocus and capture the IP address."""
+    global FOOOCUS_IP
+
+    print("Starting Fooocus...")
+    command = ["python3", "entry_with_update.py", "--share", "--always-high-vram"]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=FOOOCUS_DIR)
+
+    # Monitor output for IP address
     while True:
-        output = process.stdout.readline().decode("utf-8")
+        output = process.stdout.readline()
         if output == "" and process.poll() is not None:
             break
         if output:
-            print(output.strip())
-    
-    # Capture any errors
-    stderr = process.stderr.read().decode("utf-8")
-    if stderr:
-        print("Error:", stderr)
-    
-    return process.returncode
+            print(output.strip())  # Optional: Log output for debugging
+            # Look for lines containing the IP address (e.g., "Running on https://1234-56-7890.ngrok.io")
+            match = re.search(r"Running on (https?://[^\s]+)", output)
+            if match:
+                FOOOCUS_IP = match.group(1)
+                print("Fooocus IP detected:", FOOOCUS_IP)
+                break
 
-# Step 1: Install pygit2
-print("Installing pygit2...")
-result = run_command("pip install pygit2==1.15.1")
-if result != 0:
-    sys.exit("Failed to install pygit2. Exiting.")
+    # If we haven't found the IP, Fooocus may not have started correctly
+    if FOOOCUS_IP is None:
+        raise RuntimeError("Failed to retrieve Fooocus IP address")
 
-# Step 2: Clone the Fooocus repository
-print("Cloning the Fooocus repository...")
-fooocus_dir = "/tmp/Fooocus"  # You can change this path if desired
-if not os.path.exists(fooocus_dir):
-    result = run_command(f"git clone https://github.com/lllyasviel/Fooocus.git {fooocus_dir}")
-    if result != 0:
-        sys.exit("Failed to clone the Fooocus repository. Exiting.")
-else:
-    print("Fooocus repository already exists.")
+# Endpoint to get the Fooocus IP for the frontend
+@app.route('/get_fooocus_ip', methods=['GET'])
+def get_fooocus_ip():
+    if FOOOCUS_IP:
+        return jsonify({"success": True, "fooocus_ip": FOOOCUS_IP})
+    return jsonify({"success": False, "message": "Fooocus IP not available"})
 
-# Step 3: Run the Fooocus Python script
-print("Running entry_with_update.py...")
-result = run_command("python3 entry_with_update.py --share --always-high-vram", cwd=fooocus_dir)
-if result != 0:
-    sys.exit("Failed to run entry_with_update.py. Exiting.")
+def initialize_fooocus():
+    """Initialize Fooocus setup: install dependencies, clone repo, start Fooocus."""
+    try:
+        install_pygit2()
+        clone_fooocus()
+        start_fooocus()
+    except RuntimeError as e:
+        print("Initialization error:", str(e))
+        return False
+    return True
 
-print("Fooocus setup completed successfully.")
+if __name__ == '__main__':
+    # Initialize Fooocus before starting Flask server
+    if initialize_fooocus():
+        print("Fooocus setup complete. Starting Flask server.")
+        app.run(host='0.0.0.0', port=5000)
+    else:
+        print("Fooocus setup failed.")
