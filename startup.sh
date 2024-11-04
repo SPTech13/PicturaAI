@@ -23,3 +23,6 @@ fi
 # Start the Flask app (fooocus_server.py)
 echo "Starting Fooocus Flask server..."
 python3 backend/fooocus_server.py
+
+# Exit with success
+exit 0
