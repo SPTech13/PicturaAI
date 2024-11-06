@@ -33,16 +33,20 @@ def start_fooocus():
     global FOOOCUS_IP
 
     print("Starting Fooocus...")
-    command = ["python3", "entry_with_update.py", "--share", "--always-high-vram"]
+    # Attempt to specify a different port if Fooocus allows it
+    command = ["python3", "entry_with_update.py", "--share", "--always-high-vram", "--port", "5001"]
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=FOOOCUS_DIR)
 
-    # Monitor output for IP address with retry mechanism
+    # Log every line of output to help diagnose IP retrieval issues
+    all_output = []
     while True:
         output = process.stdout.readline()
         if output == "" and process.poll() is not None:
             break
         if output:
-            print(output.strip())  # Log every line of output for debugging
+            all_output.append(output.strip())  # Collect all output for diagnostics
+            print(output.strip())  # Print for Render logs
+
             # Attempt to find IP address in output
             match = re.search(r"Running on (https?://[^\s]+)", output)
             if match:
@@ -51,6 +55,7 @@ def start_fooocus():
                 break
 
     if FOOOCUS_IP is None:
+        print("Full output log from Fooocus startup:", "\n".join(all_output))  # Print all collected output
         raise RuntimeError("Failed to retrieve Fooocus IP address")
 
 # Endpoint to get the Fooocus IP for the frontend
@@ -75,7 +80,7 @@ if __name__ == '__main__':
     # Initialize Fooocus before starting Flask server
     if initialize_fooocus():
         print("Fooocus setup complete. Starting Flask server.")
-        # Bind to port 8080 for Render
+        # Bind Flask to port 8080 for Render
         app.run(host='0.0.0.0', port=8080)
     else:
         print("Fooocus setup failed.")
