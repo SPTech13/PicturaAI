@@ -1,3 +1,4 @@
 Flask==2.0.3           # Flask for the backend server
 pygit2==1.15.1         # pygit2 for Git integration
 Werkzeug==2.0.3
+gunicorn
