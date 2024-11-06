@@ -37,23 +37,19 @@ def start_fooocus():
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=FOOOCUS_DIR)
 
     # Monitor output for IP address with retry mechanism
-    retries, max_retries, delay = 0, 5, 5
-    while retries < max_retries:
+    while True:
         output = process.stdout.readline()
         if output == "" and process.poll() is not None:
             break
         if output:
-            print(output.strip())  # Optional: Log output for debugging
-            # Look for lines containing the IP address
+            print(output.strip())  # Log every line of output for debugging
+            # Attempt to find IP address in output
             match = re.search(r"Running on (https?://[^\s]+)", output)
             if match:
                 FOOOCUS_IP = match.group(1)
                 print("Fooocus IP detected:", FOOOCUS_IP)
                 break
-        retries += 1
-        time.sleep(delay)
 
-    # If we haven't found the IP, Fooocus may not have started correctly
     if FOOOCUS_IP is None:
         raise RuntimeError("Failed to retrieve Fooocus IP address")
 
@@ -79,6 +75,7 @@ if __name__ == '__main__':
     # Initialize Fooocus before starting Flask server
     if initialize_fooocus():
         print("Fooocus setup complete. Starting Flask server.")
-        app.run(host='0.0.0.0', port=5000)
+        # Bind to port 8080 for Render
+        app.run(host='0.0.0.0', port=8080)
     else:
         print("Fooocus setup failed.")
