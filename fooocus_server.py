@@ -36,19 +36,22 @@ def start_fooocus():
     command = ["python3", "entry_with_update.py", "--share", "--always-high-vram"]
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=FOOOCUS_DIR)
 
-    # Monitor output for IP address
-    while True:
+    # Monitor output for IP address with retry mechanism
+    retries, max_retries, delay = 0, 5, 5
+    while retries < max_retries:
         output = process.stdout.readline()
         if output == "" and process.poll() is not None:
             break
         if output:
             print(output.strip())  # Optional: Log output for debugging
-            # Look for lines containing the IP address (e.g., "Running on https://1234-56-7890.ngrok.io")
+            # Look for lines containing the IP address
             match = re.search(r"Running on (https?://[^\s]+)", output)
             if match:
                 FOOOCUS_IP = match.group(1)
                 print("Fooocus IP detected:", FOOOCUS_IP)
                 break
+        retries += 1
+        time.sleep(delay)
 
     # If we haven't found the IP, Fooocus may not have started correctly
     if FOOOCUS_IP is None:
