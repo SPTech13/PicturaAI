@@ -4,91 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fooocus Image Editor</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        button, input[type="file"], select, input[type="text"] { padding: 10px; font-size: 16px; cursor: pointer; margin: 5px; }
-        .output { margin-top: 20px; font-family: monospace; white-space: pre; text-align: left; }
-        img { max-width: 100%; border-radius: 8px; margin-top: 20px; }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Fooocus Image Editor</h1>
-    <p>Upload an image and edit it using Fooocus presets.</p>
+    <div class="container">
+        <h1>Fooocus Image Editor</h1>
+        <p>Upload an image and edit it using Fooocus presets.</p>
 
-    <input type="file" id="roomImage" accept="image/*"><br>
-    <input type="text" id="prompt" placeholder="Enter prompt for style"><br>
-    
-    <select id="preset">
-        <option value="cog-realistic">Realistic</option>
-        <option value="cog-digital">Digital</option>
-        <option value="cog-illustration">Illustration</option>
-        <option value="cog-painting">Painting</option>
-    </select><br>
+        <div id="uploadForm">
+            <input type="file" id="roomImage" accept="image/*" placeholder="Upload Image"><br>
+            <input type="text" id="prompt" placeholder="Enter prompt for style"><br>
+            <select id="preset">
+                <option value="cog-realistic">Realistic</option>
+                <option value="cog-digital">Digital</option>
+                <option value="cog-illustration">Illustration</option>
+                <option value="cog-painting">Painting</option>
+            </select><br>
+            <button onclick="submitForm()">Upload and Edit Image</button>
+        </div>
 
-    <button onclick="processImage()">Upload and Edit Image</button>
-    <div id="output" class="output"></div>
-    <div id="imageResult"></div>
+        <div id="output" class="output"></div>
+        <div id="result"></div>
+    </div>
 
-    <script>
-        let fooocusApiUrl = null;
-
-        // Fetch Fooocus IP from Flask backend
-        async function getFooocusIp() {
-            const response = await fetch('/get_fooocus_ip');
-            const result = await response.json();
-            if (result.success) {
-                fooocusApiUrl = result.fooocus_ip;
-                document.getElementById('output').innerText = 'Connected to Fooocus!';
-            } else {
-                document.getElementById('output').innerText = 'Error connecting to Fooocus.';
-            }
-        }
-
-        // Call to fetch Fooocus IP on page load
-        getFooocusIp();
-
-        async function processImage() {
-            if (!fooocusApiUrl) {
-                document.getElementById('output').innerText = 'Fooocus is not connected. Try again later.';
-                return;
-            }
-
-            const fileInput = document.getElementById('roomImage');
-            const prompt = document.getElementById('prompt').value;
-            const preset = document.getElementById('preset').value;
-            const outputDiv = document.getElementById('output');
-            const imageResultDiv = document.getElementById('imageResult');
-
-            outputDiv.innerText = 'Uploading and processing image...';
-            imageResultDiv.innerHTML = '';
-
-            if (!fileInput.files[0]) {
-                outputDiv.innerText = 'Please select an image to upload.';
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
-            formData.append('prompt', prompt);
-            formData.append('preset', preset);
-
-            try {
-                const response = await fetch(`${fooocusApiUrl}/generate`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                
-                if (result.success) {
-                    outputDiv.innerText = 'Image processed successfully!';
-                    imageResultDiv.innerHTML = `<img src="${result.image_url}" alt="Processed Image">`;
-                } else {
-                    outputDiv.innerText = `Processing failed: ${result.message}`;
-                }
-            } catch (error) {
-                outputDiv.innerText = `An error occurred: ${error.message}`;
-            }
-        }
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
