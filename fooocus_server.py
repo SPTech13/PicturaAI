@@ -9,7 +9,7 @@ app = Flask(__name__)
 # Define constants
 FOOOCUS_REPO_URL = "https://github.com/lllyasviel/Fooocus.git"
 FOOOCUS_DIR = "/tmp/Fooocus"
-FOOOCUS_IP = None  # Will be set dynamically after Fooocus starts
+FOOOCUS_IP = "http://localhost:5001"  # Fallback IP for testing if Fooocus fails to provide one
 
 def install_pygit2():
     """Install pygit2 if not already installed."""
@@ -31,32 +31,36 @@ def clone_fooocus():
 def start_fooocus():
     """Start Fooocus and capture the IP address."""
     global FOOOCUS_IP
+    log_file = "/tmp/fooocus_startup.log"  # Log file to capture all output
 
     print("Starting Fooocus...")
-    # Attempt to specify a different port if Fooocus allows it
-    command = ["python3", "entry_with_update.py", "--share", "--always-high-vram", "--port", "5001"]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=FOOOCUS_DIR)
+    command = ["python3", "entry_with_update.py", "--share", "--always-high-vram"]
+    with open(log_file, "w") as logfile:
+        process = subprocess.Popen(command, stdout=logfile, stderr=logfile, text=True, cwd=FOOOCUS_DIR)
 
-    # Log every line of output to help diagnose IP retrieval issues
-    all_output = []
-    while True:
-        output = process.stdout.readline()
-        if output == "" and process.poll() is not None:
+    # Wait for Fooocus to initialize
+    process.wait(timeout=60)
+
+    # Read the log file to search for the IP address
+    with open(log_file, "r") as logfile:
+        all_output = logfile.readlines()
+
+    # Print output to Render logs and attempt to find the IP
+    print("Full Fooocus startup log:")
+    for line in all_output:
+        print(line.strip())  # Print each line of the log for review
+
+        # Attempt to find IP address in output
+        match = re.search(r"Running on (https?://[^\s]+)", line)
+        if match:
+            FOOOCUS_IP = match.group(1)
+            print("Fooocus IP detected:", FOOOCUS_IP)
             break
-        if output:
-            all_output.append(output.strip())  # Collect all output for diagnostics
-            print(output.strip())  # Print for Render logs
 
-            # Attempt to find IP address in output
-            match = re.search(r"Running on (https?://[^\s]+)", output)
-            if match:
-                FOOOCUS_IP = match.group(1)
-                print("Fooocus IP detected:", FOOOCUS_IP)
-                break
-
+    if FOOOCUS_IP == "http://localhost:5001":
+        print("Using fallback Fooocus IP:", FOOOCUS_IP)
     if FOOOCUS_IP is None:
-        print("Full output log from Fooocus startup:", "\n".join(all_output))  # Print all collected output
-        raise RuntimeError("Failed to retrieve Fooocus IP address")
+        raise RuntimeError("Failed to retrieve Fooocus IP address after reviewing the full log.")
 
 # Endpoint to get the Fooocus IP for the frontend
 @app.route('/get_fooocus_ip', methods=['GET'])
